@@ -1,12 +1,26 @@
-﻿//SoundManager by Jordi vd Hulst
-
+﻿//SoundManager by Jordi
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class SoundManager : MonoBehaviour
 {
-    //The state of intensity
+    AudioSource _sound;
+    public float bgmVolume;
+    public float fadeSpeed;
+
+    public AudioSource quietSource;
+    public AudioSource mediumSource;
+    public AudioSource dynamicSource;
+
+    //Different areas have different BGM
+    public AudioClip[] island;
+    public AudioClip[] intro;
+    public AudioClip[] conversation;
+    public AudioClip[] house;
+
+    public AudioClip[] currentlyPlaying;
+
     public enum AudioLevel
     {
         Quiet,
@@ -17,48 +31,23 @@ public class SoundManager : MonoBehaviour
 
     public AudioLevel audioLevel;
 
-    //Global source
-    AudioSource _sound;
-
-    //Settings
-    public float bgmVolume;
-    public float fadeSpeed;
-
-    //Source for the intensities
-    public AudioSource quietSource;
-    public AudioSource mediumSource;
-    public AudioSource dynamicSource;
-
-    //What to play
-    public AudioClip[] currentlyPlaying;
-
-
-    //  --- Audio Tracks ---
-    public AudioClip[] island;
-    public AudioClip[] intro;
-    public AudioClip[] conversation;
-    public AudioClip[] house;
-
-    // ----------------------
-
-
     void Awake()
     {
         _sound = GetComponent<AudioSource>();
     }
 
-    //General settings for this project
     void Start()
     {
         bgmVolume = 0.5f;
         fadeSpeed = 0.4f;
+        //ChangeBGM(island);
         SetLevel(AudioLevel.Calm);
     }
 
 
     void Update()
     {
-        //Hotkeys for testing
+        //Hotkeys for debugging
         if(Input.GetKeyDown(KeyCode.Alpha1))
         {
             SetLevel(AudioLevel.Calm);
@@ -78,15 +67,15 @@ public class SoundManager : MonoBehaviour
     }
 
     //Change the currently playing BGM with a fade transition
-    public void ChangeBGM(AudioClip[] clips, AudioLevel level)
+    public void ChangeBGM(AudioClip[] clips)
     {
-        //Fade out the current audio and start fading in the new.
         if(clips != currentlyPlaying)
         {
             StartCoroutine(FadeOutClips(clips));
         }
         else
         {
+            //If we have a total new track to play, change all intensity levels
             currentlyPlaying = clips;
             for (int i = 0; i < currentlyPlaying.Length; i++)
             {
@@ -104,38 +93,41 @@ public class SoundManager : MonoBehaviour
                 }
             }
 
-            SetLevel(level);
+            SetLevel(AudioLevel.Quiet);
         }
     }
 
     //Change the intensity of the music
     public void SetLevel(AudioLevel level)
     {
-        if(level == AudioLevel.Quiet)
+        switch (level)
         {
-            StartCoroutine("FadeOut", mediumSource);
-            StartCoroutine("FadeOut", dynamicSource);
-            StartCoroutine("FadeIn", quietSource);
+            case AudioLevel.Quiet:
+                StartCoroutine("FadeOut", mediumSource);
+                StartCoroutine("FadeOut", dynamicSource);
+                StartCoroutine("FadeIn", quietSource);
+                break;
+
+            case AudioLevel.Calm:
+                StartCoroutine("FadeIn", mediumSource);
+                StartCoroutine("FadeOut", dynamicSource);
+                StartCoroutine("FadeOut", quietSource);
+                break;
+
+            case AudioLevel.Medium:
+                StartCoroutine("FadeIn", mediumSource);
+                StartCoroutine("FadeOut", dynamicSource);
+                StartCoroutine("FadeIn", quietSource);
+                break;
+
+            case AudioLevel.Dynamic:
+                StartCoroutine("FadeIn", mediumSource);
+                StartCoroutine("FadeIn", dynamicSource);
+                StartCoroutine("FadeIn", quietSource);
+                break;
+
+
         }
-        if (level == AudioLevel.Calm)
-        {
-            StartCoroutine("FadeIn", mediumSource);
-            StartCoroutine("FadeOut", dynamicSource);
-            StartCoroutine("FadeOut", quietSource);
-        }
-        if (level == AudioLevel.Medium)
-        {
-            StartCoroutine("FadeIn", mediumSource);
-            StartCoroutine("FadeOut", dynamicSource);
-            StartCoroutine("FadeIn", quietSource);
-        }
-        if (level == AudioLevel.Dynamic)
-        {
-            StartCoroutine("FadeIn", mediumSource);
-            StartCoroutine("FadeIn", dynamicSource);
-            StartCoroutine("FadeIn", quietSource);
-        }
-        
     }
 
     //Play voice acting
@@ -150,6 +142,7 @@ public class SoundManager : MonoBehaviour
     //Fade out all music to play new music
     public IEnumerator FadeOutClips(AudioClip[] newClips)
     {
+        //Fade everything out.
         while (quietSource.volume > 0 && mediumSource.volume > 0 && dynamicSource.volume > 0)
         {
             quietSource.volume -= Time.deltaTime * fadeSpeed; ;
@@ -178,13 +171,11 @@ public class SoundManager : MonoBehaviour
         quietSource.Play();
         mediumSource.Play();
         dynamicSource.Play();
-
-        Debug.Log("set quiet now");
         SetLevel(AudioLevel.Quiet);
         yield break;
     }
 
-    //Fade in new source
+    //Fade in new intensity level
     public IEnumerator FadeIn(AudioSource source)
     {
         while (source.volume < bgmVolume)
@@ -195,7 +186,7 @@ public class SoundManager : MonoBehaviour
         yield break;
     }
 
-    //Fade out only one source
+    //Fade out one intensity level
     public IEnumerator FadeOut(AudioSource source)
     {
         while(source.volume > 0)
